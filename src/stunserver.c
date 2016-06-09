@@ -276,24 +276,16 @@ stunHandler(struct socketConfig* config,
   {
     printf("Checking integrity..%s\n", config->pass);
     if ( !stunlib_checkIntegrity( buf,
-                                  buflen,
-                                  &stunRequest,
-                                  (uint8_t*)config->pass,
-                                  strlen(config->pass) ) )
+                                 buflen,
+                                 &stunRequest,
+                                 (uint8_t*)config->pass,
+                                 strlen(config->pass) ) )
     {
       printf("     - Integrity check NOT OK\n");
       return;
     }
   }
-/* #endif */
-/* StunServer_HandleStunIncomingBindReqMsg(clientData, */
-/*                                        &pReq, */
-/*                                        &stunRequest, */
-/*                                        false); */
-
-
   uint32_t lastReqCnt = 0;
-  /* uint32_t lastRespCnt = 0; */
 
   if (stunRequest.hasTransCount)
   {
@@ -348,17 +340,11 @@ int
 main(int   argc,
      char* argv[])
 {
-  /* struct addrinfo*        servinfo; */
-  /* int                     numbytes; */
-  /* struct sockaddr_storage their_addr; */
-  /* unsigned char           buf[MAXBUFLEN]; */
   struct sockaddr_storage localAddr;
   char                    interface[10];
   int                     port;
 
   transIDSinUse = 0;
-  /* StunMessage            stunRequest; */
-  /* STUN_INCOMING_REQ_DATA pReq; */
 
   pthread_t socketListenThread;
   pthread_t cleanupThread;
@@ -448,8 +434,6 @@ main(int   argc,
   listenConfig.socketConfig[0].pass   = PASSWORD;
   listenConfig.stun_handler           = stunHandler;
   listenConfig.numSockets             = 1;
-
-
 
   pthread_create(&socketListenThread,
                  NULL,
