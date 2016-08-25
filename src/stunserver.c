@@ -274,12 +274,12 @@ stunHandler(struct socketConfig* config,
 
   if (stunRequest.hasMessageIntegrity)
   {
-    //printf("Checking integrity..%s\n", config->pass);
+    /* printf("Checking integrity..%s\n", config->pass); */
     if ( !stunlib_checkIntegrity( buf,
-                                 buflen,
-                                 &stunRequest,
-                                 (uint8_t*)config->pass,
-                                 strlen(config->pass) ) )
+                                  buflen,
+                                  &stunRequest,
+                                  (uint8_t*)config->pass,
+                                  strlen(config->pass) ) )
     {
       printf("     - Integrity check NOT OK\n");
       return;

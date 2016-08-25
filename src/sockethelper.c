@@ -93,6 +93,15 @@ createLocalSocket(int                    ai_family,
     }
     break;
   }
+  int ttl = 60;
+  if (setsockopt( sockfd, IPPROTO_IP, IP_RECVTTL, &ttl,sizeof(ttl) ) < 0)
+  {
+    printf("cannot set recvttl\n");
+  }
+  else
+  {
+    printf("socket set to recvttl\n");
+  }
   return sockfd;
 }
 
@@ -104,6 +113,7 @@ handleRequest(void* ptr)
   {
     /* Send to STUN, with CB to data handler if STUN packet contations
      * DATA */
+    printf("Got stun..\n");
     request->stun_handler(request->socketConfig,
                           (struct sockaddr*)&request->their_addr,
                           request->tInst,
@@ -111,9 +121,36 @@ handleRequest(void* ptr)
                           request->numbytes);
   }
   free(request);
+  printf("Finished looking for stun..\n");
   /* pthread_exit(NULL); */
   return NULL;
 }
+
+
+void
+fillMSGHdr(struct msghdr*   msgh,
+           struct iovec*    iov,
+           char*            cbuf,
+           size_t           cbufsize,
+           unsigned char*   data,
+           size_t           datalen,
+           struct sockaddr* addr,
+           size_t           addr_len)
+{
+  iov->iov_base = data;
+  iov->iov_len  = datalen;
+
+  memset( msgh, 0, sizeof(struct msghdr) );
+
+  msgh->msg_control    = cbuf;
+  msgh->msg_controllen = cbufsize;
+  msgh->msg_name       = addr;
+  msgh->msg_namelen    = addr_len;
+  msgh->msg_iov        = iov;
+  msgh->msg_iovlen     = 1;
+  msgh->msg_flags      = 0;
+}
+
 
 void*
 socketListenDemux(void* ptr)
@@ -161,15 +198,44 @@ socketListenDemux(void* ptr)
           request->tInst        = config->tInst;
           request->stun_handler = config->stun_handler;
           request->addr_len     = sizeof request->their_addr;
-          if ( ( request->numbytes =
-                   recvfrom(request->socketConfig->sockfd,
-                            request->buf, MAXBUFLEN, 0,
-                            (struct sockaddr*)&request->their_addr,
-                            &request->addr_len) ) == -1 )
+
+          struct msghdr msg;
+          char          c_buf[250];
+          struct iovec  iov;
+
+          fillMSGHdr(&msg, &iov, c_buf,
+                     sizeof(c_buf), request->buf, MAXBUFLEN,
+                     (struct sockaddr*)&request->their_addr, request->addr_len);
+
+          request->numbytes = recvmsg(ufds[i].fd, &msg, 0);
+
+          if (request->numbytes == -1)
           {
-            perror("recvfrom");
+            perror("recvmsg");
             exit(1);
           }
+
+          /* See if we can get some ttl info.. */
+          struct cmsghdr* cmsg;
+          int*            ttlptr       = NULL;
+          int             received_ttl = 0;
+          for ( cmsg = CMSG_FIRSTHDR(&msg);
+                cmsg != NULL;
+                cmsg = CMSG_NXTHDR(&msg,cmsg) )
+          {
+            printf("Cmsg type = %i\n", cmsg->cmsg_type);
+            if ( (cmsg->cmsg_level == IPPROTO_IP) &&
+                 (cmsg->cmsg_type == IP_TTL) &&
+                 (cmsg->cmsg_len) )
+            {
+              ttlptr       = (int*) CMSG_DATA(cmsg);
+              received_ttl = *ttlptr;
+              printf("received_ttl = %i \n", received_ttl);
+              break;
+            }
+          }
+
+
           int pt = pthread_create(&config->threads[config->thread_no],
                                   NULL,
                                   handleRequest,
