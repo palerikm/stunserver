@@ -95,6 +95,7 @@ createLocalSocket(int                    ai_family,
     break;
   }
 
+#if defined(__linux)
   unsigned char set = 0x03;
   if(setsockopt(sockfd, IPPROTO_IP, IP_RECVTOS, &set,sizeof(set))<0)
   {
@@ -104,6 +105,7 @@ createLocalSocket(int                    ai_family,
   {
         printf("socket set to recvtos\n");
   }
+#endif
 
   return sockfd;
 }
@@ -217,15 +219,15 @@ socketListenDemux(void* ptr)
             perror("recvmsg");
             exit(1);
           }
-
+#if defined(__linux)
           /* See if we can get some ttl info.. */
           struct cmsghdr* cmsg;
           int*            ttlptr       = NULL;
           int             received_ttl = 0;
 
-        //  struct PC_Pkt pkt;
- int *ecnptr;
- unsigned char received_ecn;
+
+          int *ecnptr;
+          unsigned char received_ecn;
 
           for ( cmsg = CMSG_FIRSTHDR(&msg);
                 cmsg != NULL;
@@ -245,12 +247,11 @@ socketListenDemux(void* ptr)
               (cmsg->cmsg_type == IP_TOS) && (cmsg->cmsg_len) ){
                 ecnptr = (int *) CMSG_DATA(cmsg);
                 received_ecn = *ecnptr;
-
                 printf("received_ecn = %d\n", received_ecn);
                 break;
               }
           }
-
+#endif
 
           int pt = pthread_create(&config->threads[config->thread_no],
                                   NULL,
