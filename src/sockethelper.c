@@ -9,6 +9,7 @@
 #include <pthread.h>
 
 #include <stunclient.h>
+
 #include "sockethelper.h"
 #include "utils.h"
 
@@ -93,15 +94,17 @@ createLocalSocket(int                    ai_family,
     }
     break;
   }
-  int ttl = 60;
-  if (setsockopt( sockfd, IPPROTO_IP, IP_RECVTTL, &ttl,sizeof(ttl) ) < 0)
+
+  unsigned char set = 0x03;
+  if(setsockopt(sockfd, IPPROTO_IP, IP_RECVTOS, &set,sizeof(set))<0)
   {
-    printf("cannot set recvttl\n");
+    printf("cannot set recvtos\n");
   }
   else
   {
-    printf("socket set to recvttl\n");
+        printf("socket set to recvtos\n");
   }
+
   return sockfd;
 }
 
@@ -219,6 +222,11 @@ socketListenDemux(void* ptr)
           struct cmsghdr* cmsg;
           int*            ttlptr       = NULL;
           int             received_ttl = 0;
+
+        //  struct PC_Pkt pkt;
+ int *ecnptr;
+ unsigned char received_ecn;
+
           for ( cmsg = CMSG_FIRSTHDR(&msg);
                 cmsg != NULL;
                 cmsg = CMSG_NXTHDR(&msg,cmsg) )
@@ -233,6 +241,14 @@ socketListenDemux(void* ptr)
               printf("received_ttl = %i \n", received_ttl);
               break;
             }
+            if ((cmsg->cmsg_level == IPPROTO_IP) &&
+              (cmsg->cmsg_type == IP_TOS) && (cmsg->cmsg_len) ){
+                ecnptr = (int *) CMSG_DATA(cmsg);
+                received_ecn = *ecnptr;
+
+                printf("received_ecn = %d\n", received_ecn);
+                break;
+              }
           }
 
 
